@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\Actions\PackagesUpdate;
+use App\Actions\PackagesRequire;
 use App\Actions\Token;
 use App\Actions\Update;
 use App\Facades\Git;
@@ -56,6 +57,7 @@ class UpdateCommand extends Command
 
     /**
      * Execute the console command.
+     * @throws GitException
      */
     public function handle()
     {
@@ -65,11 +67,15 @@ class UpdateCommand extends Command
             return; // @codeCoverageIgnore
         }
 
-        if (filled(env('COMPOSER_PACKAGES'))) {
+        if ($this->composerUpdateAllowExists()) {
+            $output = app()->call(PackagesRequire::class, ['path' => $this->base_path]);
+        } elseif (filled(env('COMPOSER_PACKAGES'))) {
             $output = app()->call(PackagesUpdate::class, ['path' => $this->base_path]);
         } else {
             $output = app()->call(Update::class, ['path' => $this->base_path]);
         }
+
+        echo $output;
 
         $this->output($output);
 
@@ -152,6 +158,11 @@ class UpdateCommand extends Command
     {
         return File::exists($this->base_path.'/composer.json')
             && File::exists($this->base_path.'/composer.lock');
+    }
+
+    protected function composerUpdateAllowExists(): bool
+    {
+        return File::exists($this->base_path.'/composer_update_allowlist.txt');
     }
 
     /**
