@@ -125,7 +125,14 @@ class UpdateCommand extends Command
 
         $this->info('Fetching from remote.');
 
-        Git::fetch('origin');
+        /**
+         * In the event of an error, we want to catch it and exit.
+         */
+        try {
+            Git::fetch('origin');
+        } catch (GitException $e) {
+            exit($e->getRunnerResult()->toText());
+        }
 
         if (
             ! env('APP_SINGLE_BRANCH')
