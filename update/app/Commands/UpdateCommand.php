@@ -192,9 +192,23 @@ class UpdateCommand extends Command
     {
         $this->info('Committing changes ...');
 
-        Git::addAllChanges()
-           ->commit(env('GIT_COMMIT_PREFIX', '').'composer update '.today()->toDateString().PHP_EOL.PHP_EOL.$this->out)
-           ->push(['origin', $this->new_branch]);
+        /**
+         * Ensure we catch any errors from the push event.
+         */
+        try {
+            Git::addAllChanges()
+                ->commit(
+                    env('GIT_COMMIT_PREFIX', '')
+                    . 'Composer Automated Update '
+                    . today()->toDateString()
+                    . PHP_EOL
+                    . PHP_EOL
+                    . $this->out
+                )
+                ->push(['origin', $this->new_branch]);
+        } catch (GitException $e) {
+            echo $e->getRunnerResult()->toText();
+        }
     }
 
     protected function createPullRequest(): void
