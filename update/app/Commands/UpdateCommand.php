@@ -103,9 +103,32 @@ class UpdateCommand extends Command
 
         $this->parent_branch = Git::getCurrentBranchName();
 
-        $this->new_branch = 'cu/'.Str::random(8);
+        $this->info('Repository checked out on branch "'.$this->parent_branch.'"');
 
-        if (env('APP_SINGLE_BRANCH')) {
+        $appParentBranch = env('APP_PARENT_BRANCH');
+
+        if ($appParentBranch) {
+            $this->parent_branch = env('APP_PARENT_BRANCH');
+
+            $this->info('Checkout "'.$this->parent_branch.'"');
+            Git::checkout('remotes/origin/'.$this->parent_branch);
+
+            $this->info('Using parent branch "'.$this->parent_branch.'"');
+        }
+
+        $this->info('Creating new branch ...');
+
+        $useMaintenanceBranchNameConvention = env('APP_MAINTENANCE_BRANCH_CONVENTION');
+
+        if ($useMaintenanceBranchNameConvention) {
+            $this->new_branch = 'maintenance/'. strtolower(date('F-Y'));
+        } else {
+            $this->new_branch = 'cu/'.Str::random(8);
+        }
+
+        $appSingleBranch = env('APP_SINGLE_BRANCH');
+
+        if ($appSingleBranch && !$useMaintenanceBranchNameConvention) {
             $this->new_branch = $this->parent_branch.env('APP_SINGLE_BRANCH_POSTFIX', '-updated');
 
             $this->info('Using single-branch approach. Branch name: "'.$this->new_branch.'"');
@@ -135,13 +158,15 @@ class UpdateCommand extends Command
         }
 
         if (
-            ! env('APP_SINGLE_BRANCH')
+            !$appSingleBranch
             || ! in_array('remotes/origin/'.$this->new_branch, Git::getBranches() ?? [])
         ) {
             $this->info('Creating branch "'.$this->new_branch.'".');
 
             Git::createBranch($this->new_branch, true);
-        } elseif (env('APP_SINGLE_BRANCH')) {
+        }
+
+        if ($appSingleBranch && !$useMaintenanceBranchNameConvention) {
             $this->info('Checking out branch "'.$this->new_branch.'".');
 
             Git::checkout($this->new_branch);
