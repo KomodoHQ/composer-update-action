@@ -66,7 +66,6 @@ jobs:
           GIT_EMAIL: cu@composer-update
           APP_SINGLE_BRANCH: 1
           APP_SINGLE_BRANCH_POSTFIX: -updated
-          APP_PARENT_BRANCH: 'main'
           APP_MAINTENANCE_BRANCH_CONVENTION: 1
           GIT_COMMIT_PREFIX: '[UPDATE] '
           COMPOSER_PACKAGES: 'typo3/cms-*'

@@ -105,17 +105,6 @@ class UpdateCommand extends Command
 
         $this->info('Repository checked out on branch "'.$this->parent_branch.'"');
 
-        $appParentBranch = env('APP_PARENT_BRANCH');
-
-        if ($appParentBranch) {
-            $this->parent_branch = env('APP_PARENT_BRANCH');
-
-            $this->info('Checkout "'.$this->parent_branch.'"');
-            Git::checkout('remotes/origin/'.$this->parent_branch);
-
-            $this->info('Using parent branch "'.$this->parent_branch.'"');
-        }
-
         $this->info('Creating new branch ...');
 
         $useMaintenanceBranchNameConvention = env('APP_MAINTENANCE_BRANCH_CONVENTION');
