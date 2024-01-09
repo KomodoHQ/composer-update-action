@@ -51,8 +51,7 @@ jobs:
 - GIT_EMAIL : git email
 - APP_SINGLE_BRANCH : If set, the new functionality is enabled.
 - APP_SINGLE_BRANCH_POSTFIX : A postfix for the branch used for updates. Default value is "-updated". If the branch doesn't exist, a new branch will be created with the parent branch name plus the postfix, e.g. "master-updated".
-- APP_PARENT_BRANCH : This is the branch that will be used as the parent branch for the pull request. If not set, the default branch will be used.
-- APP_MAINTENANCE_BRANCH_CONVENTION : Branches from your defined parent branch using a specific naming convention will be ignored. Default value is "maintenance/month-year", this overrides the single branch settings.
+- APP_USE_MAINTENANCE_BRANCH_CONVENTION : Branches from your defined parent branch using a specific naming convention will be ignored. Naming convention is "maintenance/month-year", this overrides the single branch settings.
 - GIT_COMMIT_PREFIX : Add a prefix to the commit message and pull request title. E.g. "[UPDATE] "
 - COMPOSER_PACKAGES : Specify which packages should be updated. E.g. "typo3/cms-*". Setting this variable will also run Composer with the `--with-dependencies` argument.
 
@@ -66,7 +65,7 @@ jobs:
           GIT_EMAIL: cu@composer-update
           APP_SINGLE_BRANCH: 1
           APP_SINGLE_BRANCH_POSTFIX: -updated
-          APP_MAINTENANCE_BRANCH_CONVENTION: 1
+          APP_USE_MAINTENANCE_BRANCH_CONVENTION: 1
           GIT_COMMIT_PREFIX: '[UPDATE] '
           COMPOSER_PACKAGES: 'typo3/cms-*'
 ```

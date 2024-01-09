@@ -107,7 +107,7 @@ class UpdateCommand extends Command
 
         $this->info('Creating new branch ...');
 
-        $useMaintenanceBranchNameConvention = env('APP_MAINTENANCE_BRANCH_CONVENTION');
+        $useMaintenanceBranchNameConvention = env('APP_USE_MAINTENANCE_BRANCH_CONVENTION');
 
         if ($useMaintenanceBranchNameConvention) {
             $this->new_branch = 'maintenance/'. strtolower(date('F-Y'));
