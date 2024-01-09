@@ -154,7 +154,9 @@ class UpdateCommand extends Command
         try {
             Git::fetch('origin');
         } catch (GitException $e) {
-            exit($e->getRunnerResult()->toText());
+            $this->info($e->getRunnerResult()->toText()); // @codeCoverageIgnore
+
+            exit(1);
         }
 
         if (
@@ -239,7 +241,9 @@ class UpdateCommand extends Command
                 )
                 ->push(['origin', $this->new_branch]);
         } catch (GitException $e) {
-            echo $e->getRunnerResult()->toText();
+            $this->info($e->getRunnerResult()->toText()); // @codeCoverageIgnore
+
+            exit(1);
         }
     }
 
