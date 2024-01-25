@@ -36,6 +36,7 @@ class PackagesRequire
             '--no-interaction',
             '--no-progress',
             '--no-scripts',
+            '--no-cache',
         ];
 
         $cmd = $this->getUpdatedCommandArguments($cmd, $packagesToArray);
