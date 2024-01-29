@@ -21,7 +21,7 @@ class Update
         /** @var ProcessResult $result */
         $result = Process::composer($path)->run($cmd);
 
-        if (filled($result->output())) {
+        if ($result->successful()) {
             return trim($result->output()); // @codeCoverageIgnore
         }
 
