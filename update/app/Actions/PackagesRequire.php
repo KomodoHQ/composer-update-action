@@ -59,6 +59,9 @@ class PackagesRequire
         // Remove '__COMPOSER_PACKAGES_ARRAY__' from $cmd
         array_splice($cmd, $keyPosition, 1);
 
+        // Filter out empty values from $packagesToArray
+        $packagesToArray = array_filter($packagesToArray);
+
         // Insert elements from $arr into $cmd at the found position
         array_splice($cmd, $keyPosition, 0, $packagesToArray);
 
