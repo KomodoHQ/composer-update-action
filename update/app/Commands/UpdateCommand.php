@@ -61,7 +61,11 @@ class UpdateCommand extends Command
             return; // @codeCoverageIgnore
         }
 
-        $output = $this->process(env('COMPOSER_PACKAGES') ? 'update-packages' : 'update');
+        if ($this->composerUpdateAllowExists()) {
+            $output = $this->process('upgrade-packages');
+        } else {
+            $output = $this->process(env('COMPOSER_PACKAGES') ? 'update-packages' : 'update');
+        }
 
         $this->output($output);
 
@@ -89,8 +93,21 @@ class UpdateCommand extends Command
 
         $this->parent_branch = Git::getCurrentBranchName();
 
-        $this->new_branch = 'cu/'.Str::random(8);
-        if (env('APP_SINGLE_BRANCH')) {
+        $this->info('Repository checked out on branch "'.$this->parent_branch.'"');
+
+        $this->info('Creating new branch ...');
+
+        $useMaintenanceBranchNameConvention = env('APP_USE_MAINTENANCE_BRANCH_CONVENTION');
+
+        if ($useMaintenanceBranchNameConvention) {
+            $this->new_branch = 'maintenance/'. strtolower(date('F-Y'));
+        } else {
+            $this->new_branch = 'cu/'.Str::random(8);
+        }
+
+        $appSingleBranch = env('APP_SINGLE_BRANCH');
+
+        if ($appSingleBranch && !$useMaintenanceBranchNameConvention) {
             $this->new_branch = $this->parent_branch.env('APP_SINGLE_BRANCH_POSTFIX', '-updated');
 
             $this->info('Using single-branch approach. Branch name: "'.$this->new_branch.'"');
@@ -110,16 +127,27 @@ class UpdateCommand extends Command
 
         $this->info('Fetching from remote.');
 
-        Git::fetch('origin');
+        /**
+         * In the event of an error, we want to catch it and exit.
+         */
+        try {
+            Git::fetch('origin');
+        } catch (GitException $e) {
+            $this->info($e->getRunnerResult()->toText()); // @codeCoverageIgnore
+
+            exit(1);
+        }
 
         if (
-            ! env('APP_SINGLE_BRANCH')
+            !$appSingleBranch
             || ! in_array('remotes/origin/'.$this->new_branch, Git::getBranches() ?? [])
         ) {
             $this->info('Creating branch "'.$this->new_branch.'".');
 
             Git::createBranch($this->new_branch, true);
-        } elseif (env('APP_SINGLE_BRANCH')) {
+        }
+
+        if ($appSingleBranch && !$useMaintenanceBranchNameConvention) {
             $this->info('Checking out branch "'.$this->new_branch.'".');
 
             Git::checkout($this->new_branch);
@@ -146,6 +174,11 @@ class UpdateCommand extends Command
     {
         return File::exists($this->base_path.'/composer.json')
             && File::exists($this->base_path.'/composer.lock');
+    }
+
+    protected function composerUpdateAllowExists(): bool
+    {
+        return File::exists($this->base_path.'/composer_update_allowlist.txt');
     }
 
     /**

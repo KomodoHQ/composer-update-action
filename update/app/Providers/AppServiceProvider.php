@@ -5,6 +5,7 @@ namespace App\Providers;
 use CzProject\GitPhp\Git;
 use Illuminate\Support\ServiceProvider;
 use Symfony\Component\Process\Process;
+use Illuminate\Support\Facades\File;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +34,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             'process.update-packages',
             fn ($app) => new Process($this->packages())
+        );
+
+        $this->app->bind(
+            'process.upgrade-packages',
+            fn ($app) => new Process($this->requirePackages())
         );
 
         $this->app->bind(
@@ -78,6 +84,55 @@ class AppServiceProvider extends ServiceProvider
     /**
      * @return array
      */
+    private function requirePackages(): array
+    {
+        $cmd =  [
+            'composer',
+            'require',
+            '__COMPOSER_PACKAGES_ARRAY__', // @codeCoverageIgnore
+            '--prefer-dist',
+            '--with-dependencies',
+            '--no-interaction',
+            '--no-progress',
+            '--no-scripts',
+            '--no-cache',
+        ];
+
+        return $this->getUpdatedCommandArguments(
+            $cmd,
+            $this->getAllowedPackageArrayList()
+        );
+    }
+
+    private function getAllowedPackageArrayList(): array
+    {
+        $path = env('COMPOSER_PATH', '');
+        $filePath = $path.'/composer_update_allowlist.txt';
+
+        try {
+            if (!File::exists($filePath)) {
+                throw new Exception('The composer_update_allowlist file missing.');
+            }
+
+            /**
+             * Get contents of composer_update_allowlist.txt.
+             */
+            $packages = File::get($filePath);
+
+            if (empty($packages)) {
+                throw new Exception('No packages are allowed to be updated.');
+            }
+
+            return explode("\n", $packages);
+
+        } catch (Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    /**
+     * @return array
+     */
     private function token(): array
     {
         return [
@@ -97,5 +152,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         //
+    }
+
+    private function getUpdatedCommandArguments(array $cmd, array $packagesToArray): array
+    {
+        // Find the position of '__COMPOSER_PACKAGES_ARRAY__' in $cmd
+        $keyPosition = array_search('__COMPOSER_PACKAGES_ARRAY__', $cmd);
+
+        // Remove '__COMPOSER_PACKAGES_ARRAY__' from $cmd
+        array_splice($cmd, $keyPosition, 1);
+
+        // Filter out empty values from $packagesToArray
+        $packagesToArray = array_filter($packagesToArray);
+
+        // Insert elements from $arr into $cmd at the found position
+        array_splice($cmd, $keyPosition, 0, $packagesToArray);
+
+        return $cmd;
     }
 }
