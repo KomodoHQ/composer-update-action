@@ -4,11 +4,14 @@ namespace App\Providers;
 
 use CzProject\GitPhp\Git;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\File;
 
 class AppServiceProvider extends ServiceProvider
 {
+    private $base_path;
+
     /**
      * Register any application services.
      *
@@ -106,12 +109,15 @@ class AppServiceProvider extends ServiceProvider
 
     private function getAllowedPackageArrayList(): array
     {
-        $path = env('COMPOSER_PATH', '');
-        $filePath = $path.'/composer_update_allowlist.txt';
+        $this->base_path = env('GITHUB_WORKSPACE', '').env('COMPOSER_PATH', '');
+        $filePath = $this->base_path . '/composer_update_allowlist.txt';
 
         try {
+            /**
+             * Check if composer_update_allowlist.txt exists.
+             */
             if (!File::exists($filePath)) {
-                throw new Exception('The composer_update_allowlist file missing.');
+                throw new \RuntimeException('The composer_update_allowlist file missing.');
             }
 
             /**
@@ -120,12 +126,14 @@ class AppServiceProvider extends ServiceProvider
             $packages = File::get($filePath);
 
             if (empty($packages)) {
-                throw new Exception('No packages are allowed to be updated.');
+                throw new \RuntimeException('No packages are allowed to be updated.');
             }
 
-            return explode("\n", $packages);
+            $packageArray = explode("\n", $packages);
 
-        } catch (Exception $e) {
+            return $packageArray;
+
+        } catch (RuntimeException $e) {
             return $e->getMessage();
         }
     }

@@ -2,6 +2,7 @@
 
 namespace App\Facades;
 
+use CzProject\GitPhp\GitRepository;
 use Illuminate\Support\Facades\Facade;
 
 class Git extends Facade

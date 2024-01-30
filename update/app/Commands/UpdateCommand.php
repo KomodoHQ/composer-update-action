@@ -3,7 +3,9 @@
 namespace App\Commands;
 
 use App\Facades\Git;
-use GrahamCampbell\GitHub\Facades\GitHub;
+use App\Facades\GitHub;
+use CzProject\GitPhp\GitException;
+use Github\AuthMethod;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
@@ -52,6 +54,7 @@ class UpdateCommand extends Command
 
     /**
      * Execute the console command.
+     * @throws GitException
      */
     public function handle()
     {
@@ -66,6 +69,8 @@ class UpdateCommand extends Command
         } else {
             $output = $this->process(env('COMPOSER_PACKAGES') ? 'update-packages' : 'update');
         }
+
+        echo $output;
 
         $this->output($output);
 
@@ -91,6 +96,9 @@ class UpdateCommand extends Command
 
         $this->base_path = env('GITHUB_WORKSPACE', '').env('COMPOSER_PATH', '');
 
+        Git::execute('config', '--global', '--add', 'safe.directory', env('GITHUB_WORKSPACE', ''));
+        Git::execute('config', '--global', '--add', 'safe.directory', $this->base_path);
+
         $this->parent_branch = Git::getCurrentBranchName();
 
         $this->info('Repository checked out on branch "'.$this->parent_branch.'"');
@@ -115,15 +123,15 @@ class UpdateCommand extends Command
 
         $token = env('GITHUB_TOKEN');
 
-        GitHub::authenticate($token, 'http_token');
+        GitHub::authenticate($token, AuthMethod::ACCESS_TOKEN);
 
         Git::setRemoteUrl(
             'origin',
             "https://{$token}@github.com/{$this->repo}.git"
         );
 
-        Git::execute(...['config', '--local', 'user.name', env('GIT_NAME', 'cu')]);
-        Git::execute(...['config', '--local', 'user.email', env('GIT_EMAIL', 'cu@composer-update')]);
+        Git::execute('config', '--local', 'user.name', env('GIT_NAME', 'cu'));
+        Git::execute('config', '--local', 'user.email', env('GIT_EMAIL', 'cu@composer-update'));
 
         $this->info('Fetching from remote.');
 
@@ -245,15 +253,31 @@ class UpdateCommand extends Command
     }
 
     /**
-     * @return void
+     * @throws GitException
      */
     protected function commitPush(): void
     {
         $this->info('Committing changes ...');
 
+        /**
+         * Ensure we catch any errors from the push event.
+         */
+        try {
         Git::addAllChanges()
-           ->commit(env('GIT_COMMIT_PREFIX', '').'composer update '.today()->toDateString().PHP_EOL.PHP_EOL.$this->out)
-           ->push('origin', [$this->new_branch]);
+                ->commit(
+                    env('GIT_COMMIT_PREFIX', '')
+                    . 'Composer Automated Update '
+                    . today()->toDateString()
+                    . PHP_EOL
+                    . PHP_EOL
+                    . $this->out
+                )
+                ->push(['origin', $this->new_branch]);
+        } catch (GitException $e) {
+            $this->info($e->getRunnerResult()->toText()); // @codeCoverageIgnore
+
+            exit(1);
+        }
     }
 
     /**
@@ -277,7 +301,7 @@ class UpdateCommand extends Command
         $createPullRequest = true;
 
         if (env('APP_SINGLE_BRANCH')) {
-            $pullRequests = Github::pullRequest()->all(
+            $pullRequests = GitHub::api('pullRequest')->all(
                 Str::before($this->repo, '/'),
                 Str::afterLast($this->repo, '/'),
                 [
@@ -291,8 +315,8 @@ class UpdateCommand extends Command
             }
         }
 
-        if ($createPullRequest) {
-            $result = GitHub::pullRequest()->create(
+        if ($createPullRequest || ! isset($pullRequests)) {
+            $result = GitHub::api('pullRequest')->create(
                 Str::before($this->repo, '/'),
                 Str::afterLast($this->repo, '/'),
                 $pullData
