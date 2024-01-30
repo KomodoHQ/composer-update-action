@@ -2,14 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Actions\PackagesUpdate;
-use App\Actions\Token;
-use App\Actions\Update;
 use App\Facades\Git;
-use App\Facades\GitHub;
+use GrahamCampbell\GitHub\Facades\GitHub;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Mockery\MockInterface;
+use Mockery as m;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class UpdateCommandTest extends TestCase
@@ -21,24 +19,38 @@ class UpdateCommandTest extends TestCase
         GitHub::shouldReceive('authenticate')->once();
 
         Git::shouldReceive('setRemoteUrl')->once();
-        Git::shouldReceive('execute')->times(4);
+        Git::shouldReceive('execute')->twice();
         Git::shouldReceive('fetch')->once();
         Git::shouldReceive('createBranch')->once();
 
         File::shouldReceive('exists')->twice()->andReturnTrue();
 
-        $this->mock(Update::class, function (MockInterface $mock) {
-            $mock->allows('__invoke')->once()->andReturn('test');
-        });
+        $this->instance(
+            'process.update',
+            m::mock(
+                Process::class,
+                function ($mock) {
+                    $mock->shouldReceive('setWorkingDirectory->setTimeout->setEnv->mustRun->getOutput')->once()->andReturn(
+                        'test'
+                    );
+                }
+            )
+        );
 
-        $this->mock(Token::class, function (MockInterface $mock) {
-            $mock->allows('__invoke')->once()->andReturn('');
-        });
+        $this->instance(
+            'process.token',
+            m::mock(
+                Process::class,
+                function ($mock) {
+                    $mock->shouldReceive('setWorkingDirectory->setTimeout->mustRun')->once()->andReturnSelf();
+                }
+            )
+        );
 
         Git::shouldReceive('hasChanges')->andReturnTrue();
         Git::shouldReceive('addAllChanges->commit->push')->once();
 
-        GitHub::shouldReceive('api->create')->once()->andReturn([
+        GitHub::shouldReceive('pullRequest->create')->once()->andReturn([
             'html_url' => 'https://',
         ]);
 
@@ -56,24 +68,38 @@ class UpdateCommandTest extends TestCase
         GitHub::shouldReceive('authenticate')->once();
 
         Git::shouldReceive('setRemoteUrl')->once();
-        Git::shouldReceive('execute')->times(4);
+        Git::shouldReceive('execute')->twice();
         Git::shouldReceive('fetch')->once();
         Git::shouldReceive('createBranch')->once();
 
         File::shouldReceive('exists')->twice()->andReturnTrue();
 
-        $this->mock(PackagesUpdate::class, function (MockInterface $mock) {
-            $mock->allows('__invoke')->once()->andReturn('test');
-        });
+        $this->instance(
+            'process.update-packages',
+            m::mock(
+                Process::class,
+                function ($mock) {
+                    $mock->shouldReceive('setWorkingDirectory->setTimeout->setEnv->mustRun->getOutput')->once()->andReturn(
+                        'test'
+                    );
+                }
+            )
+        );
 
-        $this->mock(Token::class, function (MockInterface $mock) {
-            $mock->allows('__invoke')->once()->andReturnSelf();
-        });
+        $this->instance(
+            'process.token',
+            m::mock(
+                Process::class,
+                function ($mock) {
+                    $mock->shouldReceive('setWorkingDirectory->setTimeout->mustRun')->once()->andReturnSelf();
+                }
+            )
+        );
 
         Git::shouldReceive('hasChanges')->andReturnTrue();
         Git::shouldReceive('addAllChanges->commit->push')->once();
 
-        GitHub::shouldReceive('api->create')->once()->andReturn([
+        GitHub::shouldReceive('pullRequest->create')->once()->andReturn([
             'html_url' => 'https://',
         ]);
 
@@ -91,7 +117,7 @@ class UpdateCommandTest extends TestCase
         GitHub::shouldReceive('authenticate')->once();
 
         Git::shouldReceive('setRemoteUrl')->once();
-        Git::shouldReceive('execute')->times(4);
+        Git::shouldReceive('execute')->twice();
         Git::shouldReceive('fetch')->once();
         Git::shouldReceive('getBranches')->once()->andReturn([
             'remotes/origin/test-updated',
@@ -103,18 +129,32 @@ class UpdateCommandTest extends TestCase
 
         File::shouldReceive('exists')->twice()->andReturnTrue();
 
-        $this->mock(Update::class, function (MockInterface $mock) {
-            $mock->allows('__invoke')->once()->andReturn('test');
-        });
+        $this->instance(
+            'process.update',
+            m::mock(
+                Process::class,
+                function ($mock) {
+                    $mock->shouldReceive('setWorkingDirectory->setTimeout->setEnv->mustRun->getOutput')->once()->andReturn(
+                        'test'
+                    );
+                }
+            )
+        );
 
-        $this->mock(Token::class, function (MockInterface $mock) {
-            $mock->allows('__invoke')->once()->andReturn('');
-        });
+        $this->instance(
+            'process.token',
+            m::mock(
+                Process::class,
+                function ($mock) {
+                    $mock->shouldReceive('setWorkingDirectory->setTimeout->mustRun')->once()->andReturnSelf();
+                }
+            )
+        );
 
         Git::shouldReceive('hasChanges')->andReturnTrue();
         Git::shouldReceive('addAllChanges->commit->push')->once();
 
-        GitHub::shouldReceive('api->all')->once()->andReturn([
+        GitHub::shouldReceive('pullRequest->all')->once()->andReturn([
             [
                 'html_url' => 'https://',
             ],
@@ -127,9 +167,9 @@ class UpdateCommandTest extends TestCase
 
     public function testFluentStrings()
     {
-        $str = Str::of(' - Updating laravel/framework (v7.0.0 => v7.1.0): Loading from cache')->beforeLast(
+        $str = (string) Str::of(' - Updating laravel/framework (v7.0.0 => v7.1.0): Loading from cache')->beforeLast(
             ':'
-        )->trim()->value();
+        )->trim();
 
         $this->assertEquals('- Updating laravel/framework (v7.0.0 => v7.1.0)', $str);
     }

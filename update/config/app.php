@@ -80,6 +80,8 @@ return [
     */
 
     'providers' => [
+        GrahamCampbell\GitHub\GitHubServiceProvider::class,
+
         App\Providers\AppServiceProvider::class,
     ],
 ];
