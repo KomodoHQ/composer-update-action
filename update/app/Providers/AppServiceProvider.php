@@ -21,32 +21,44 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(
             'git',
-            fn ($app) => (new Git())->open(env('GITHUB_WORKSPACE'))
+            function ($app) {
+                return (new Git())->open(env('GITHUB_WORKSPACE'));
+            }
         );
 
         $this->app->bind(
             'process.install',
-            fn ($app) => new Process($this->command('install'))
+            function ($app) {
+                return new Process($this->command('install'));
+            }
         );
 
         $this->app->bind(
             'process.update',
-            fn ($app) => new Process($this->command('update'))
+            function ($app) {
+                return new Process($this->command('update'));
+            }
         );
 
         $this->app->bind(
             'process.update-packages',
-            fn ($app) => new Process($this->packages())
+            function ($app) {
+                return new Process($this->packages());
+            }
         );
 
         $this->app->bind(
             'process.upgrade-packages',
-            fn ($app) => new Process($this->requirePackages())
+            function ($app) {
+                return new Process($this->requirePackages());
+            }
         );
 
         $this->app->bind(
             'process.token',
-            fn ($app) => new Process($this->token())
+            function ($app) {
+                return new Process($this->token());
+            }
         );
     }
 
