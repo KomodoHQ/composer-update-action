@@ -6,7 +6,7 @@ RUN apt-get install -yq git libzip-dev unzip build-essential libssl-dev zlib1g-d
 RUN docker-php-ext-install zip
 RUN docker-php-ext-install -j$(nproc) zip
 
-RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
+RUN docker-php-ext-configure gd --with-jpeg=/usr/include/ --with-freetype=/usr/include/ \
     && docker-php-ext-install gd
 
 # composer
