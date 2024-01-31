@@ -30,27 +30,27 @@ class UpdateCommand extends Command
     /**
      * @var string
      */
-    protected string $repo;
+    protected $repo;
 
     /**
      * @var string
      */
-    protected string $base_path;
+    protected $base_path;
 
     /**
      * @var string
      */
-    protected string $parent_branch;
+    protected $parent_branch;
 
     /**
      * @var string
      */
-    protected string $new_branch;
+    protected $new_branch;
 
     /**
      * @var string
      */
-    protected string $out;
+    protected $out;
 
     /**
      * Execute the console command.
