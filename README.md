@@ -13,17 +13,20 @@ The application runs on top of Laravel Zero which is a micro-framework for conso
 https://github.com/kawax/composer-workflow
 
 ## Version
-| Git branch | PHP    |
-|------------|--------|
-| 7.3        | 7.3    |
-| 7.4        | 7.4    |
-| 8.0        | 8.0    |
-| 8.1        | 8.1    |
-| 8.2        | 8.2    |
-| 8.3        | 8.3    |
-| master     | latest |
+| Git branch | PHP |
+|------------|-----|
+| 7.3        | 7.3 |
+| 7.4        | 7.4 |
+| 8.2        | 8.2 |
+| 8.3        | 8.3 |
+| master     | 8.1 |
 
-> **Note:** Currently only PHP 7.3, 7.4, 8.0, 8.1, 8.2, 8.3 are supported with Composer version 2.
+To add new versions simply create a new branch with your desired PHP version and update the README.md file.
+You will need to update the Dockerfile and the composer.json file to reflect the new PHP version.
+
+**Please follow the naming convention for the branch name!**
+
+> **Note:** Currently only PHP 7.3, 7.4, 8.2, 8.3 are supported with Composer version 2.
 
 ## Usage
 
