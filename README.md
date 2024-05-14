@@ -11,15 +11,17 @@
 https://github.com/kawax/composer-workflow
 
 ## Version
-| ver    | PHP    |
-|--------|--------|
-| v1     | 7.4    |
-| v2     | 8.0    |
-| v3     | 8.1    |
-| v4     | 8.2    |
-| master | latest |
+| Git branch | PHP    |
+|------------|--------|
+| 7.3        | 7.3    |
+| 7.4        | 7.4    |
+| 8.0        | 8.0    |
+| 8.1        | 8.1    |
+| 8.2        | 8.2    |
+| 8.3        | 8.3    |
+| master     | latest |
 
-> **Note:** Currently only the master version is available. v5 and later will not be released. If you need to specify the PHP version, use "Reusable workflow version" instead.
+> **Note:** Currently only PHP 7.3, 7.4, 8.0, 8.1, 8.2, 8.3 are supported with Composer version 2.
 
 ## Usage
 
@@ -55,6 +57,7 @@ jobs:
 - GIT_COMMIT_PREFIX : Add a prefix to the commit message and pull request title. E.g. "[UPDATE] "
 - COMPOSER_PACKAGES : Specify which packages should be updated. E.g. "typo3/cms-*". Setting this variable will also run Composer with the `--with-dependencies` argument.
 
+Upgrade task
 ```yaml
       - name: composer update action
         uses: kawax/composer-update-action@master
@@ -68,6 +71,53 @@ jobs:
           APP_USE_MAINTENANCE_BRANCH_CONVENTION: 1
           GIT_COMMIT_PREFIX: '[UPDATE] '
           COMPOSER_PACKAGES: 'typo3/cms-*'
+```
+
+### Upgrade Action
+
+This task requires a `composer_update_allowlist.txt` to exist in the composer path and a compatible set of packages
+with the action's PHP version
+
+The value of the file need to be new line separated as seen:
+
+e.g.
+```text
+composer/installers
+vlucas/phpdotenv
+oscarotero/env
+nesbot/carbon
+```
+
+The action will then update the packages in the `composer_update_allowlist.txt` file and create a PR with the changes.
+
+```yaml
+name: composer update
+
+# Allows manual workflow dispatch and runs on the 24th of every month
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: '0 0 24 * *'
+
+jobs:
+    composer_update_job:
+        runs-on: ubuntu-latest
+        name: Composer Update
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Composer Update Action
+              uses: KomodoHQ/composer-update-action@master
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                COMPOSER_PATH: '/site' // e.g. /site, /;
+                GIT_NAME: cu
+                GIT_EMAIL: cu@composer-update
+                APP_USE_MAINTENANCE_BRANCH_CONVENTION: 1 // e.g. maintenance/may-2024
+                GIT_COMMIT_PREFIX: '[UPDATE] '
 ```
 
 To avoid any permissions issues, it is important to allow contents and pull-requests permissions for the GITHUB_TOKEN. This can be done by adding the following to your workflow file:
