@@ -5,7 +5,9 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/7a806f8e8f06017b9caf/maintainability)](https://codeclimate.com/github/kawax/composer-update-action/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/7a806f8e8f06017b9caf/test_coverage)](https://codeclimate.com/github/kawax/composer-update-action/test_coverage)
 
-`composer update` and create pull request.
+The following GitHub Action will run `composer update` and create a pull request with the changes.
+
+The application runs on top of Laravel Zero which is a micro-framework for console applications.
 
 ## Reusable workflow version
 https://github.com/kawax/composer-workflow
