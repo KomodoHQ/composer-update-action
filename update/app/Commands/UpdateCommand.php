@@ -280,7 +280,7 @@ class UpdateCommand extends Command
             $list .= "* {$pkg['name']} from {$pkg['from']} to {$pkg['to']}\n";
         }
         if ($amount === 0) {
-            $list = 'No packages were upgraded.';
+            $list = "No packages were upgraded.\n";
         }
 
         // Add composer.json constraint changes
