@@ -19,6 +19,7 @@ https://github.com/kawax/composer-workflow
 | 7.4        | 7.4 |
 | 8.2        | 8.2 |
 | 8.3        | 8.3 |
+| 8.4        | 8.4 |
 | master     | 8.1 |
 
 To add new versions simply create a new branch with your desired PHP version and update the README.md file.
