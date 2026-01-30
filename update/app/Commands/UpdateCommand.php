@@ -56,6 +56,9 @@ class UpdateCommand extends Command
     protected string $out;
 
     protected array $upgradedPackages = [];
+    protected array $composerJsonRequireBefore = [];
+    protected array $composerJsonRequireAfter = [];
+    protected array $requireConstraintChanges = [];
 
     /**
      * Execute the console command.
@@ -69,6 +72,9 @@ class UpdateCommand extends Command
             return; // @codeCoverageIgnore
         }
 
+        // Read composer.json require section before update
+        $this->composerJsonRequireBefore = $this->readComposerJsonRequire();
+
         if ($this->composerUpdateAllowExists()) {
             $output = app()->call(PackagesRequire::class, ['path' => $this->base_path]);
         } elseif (filled(env('COMPOSER_PACKAGES'))) {
@@ -76,6 +82,10 @@ class UpdateCommand extends Command
         } else {
             $output = app()->call(Update::class, ['path' => $this->base_path]);
         }
+
+        // Read composer.json require section after update
+        $this->composerJsonRequireAfter = $this->readComposerJsonRequire();
+        $this->requireConstraintChanges = $this->detectRequireConstraintChanges();
 
         echo $output;
 
@@ -224,17 +234,61 @@ class UpdateCommand extends Command
         $this->line($this->out);
     }
 
+    protected function readComposerJsonRequire(): array
+    {
+        $composerJsonPath = $this->base_path.'/composer.json';
+        if (!file_exists($composerJsonPath)) {
+            return [];
+        }
+        $json = json_decode(file_get_contents($composerJsonPath), true);
+        return $json['require'] ?? [];
+    }
+
+    protected function detectRequireConstraintChanges(): array
+    {
+        $changes = [];
+        foreach ($this->composerJsonRequireBefore as $package => $oldConstraint) {
+            if (isset($this->composerJsonRequireAfter[$package])) {
+                $newConstraint = $this->composerJsonRequireAfter[$package];
+                if ($oldConstraint !== $newConstraint) {
+                    $changes[] = [
+                        'name' => $package,
+                        'from' => $oldConstraint,
+                        'to' => $newConstraint,
+                    ];
+                }
+            }
+        }
+        // Also check for new packages added
+        foreach ($this->composerJsonRequireAfter as $package => $newConstraint) {
+            if (!isset($this->composerJsonRequireBefore[$package])) {
+                $changes[] = [
+                    'name' => $package,
+                    'from' => '(not required before)',
+                    'to' => $newConstraint,
+                ];
+            }
+        }
+        return $changes;
+    }
+
     protected function formatPullRequestBody(): string
     {
         $amount = count($this->upgradedPackages);
         $list = '';
-
         foreach ($this->upgradedPackages as $pkg) {
             $list .= "* {$pkg['name']} from {$pkg['from']} to {$pkg['to']}\n";
         }
-
         if ($amount === 0) {
             $list = 'No packages were upgraded.';
+        }
+
+        // Add composer.json constraint changes
+        if (count($this->requireConstraintChanges) > 0) {
+            $list .= "\nThe following version constraints in composer.json were changed:\n";
+            foreach ($this->requireConstraintChanges as $change) {
+                $list .= "* {$change['name']} constraint changed from {$change['from']} to {$change['to']}\n";
+            }
         }
 
         return <<<EOT
