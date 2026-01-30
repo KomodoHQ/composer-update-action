@@ -274,21 +274,22 @@ class UpdateCommand extends Command
 
     protected function formatPullRequestBody(): string
     {
-        $amount = count($this->upgradedPackages);
+        // Merge upgradedPackages and requireConstraintChanges for a unified upgrade list
+        $allUpgrades = $this->upgradedPackages;
+        $constraintNames = array_column($this->upgradedPackages, 'name');
+        foreach ($this->requireConstraintChanges as $change) {
+            // Avoid duplicates if already in upgradedPackages
+            if (!in_array($change['name'], $constraintNames, true)) {
+                $allUpgrades[] = $change;
+            }
+        }
+        $amount = count($allUpgrades);
         $list = '';
-        foreach ($this->upgradedPackages as $pkg) {
+        foreach ($allUpgrades as $pkg) {
             $list .= "* {$pkg['name']} from {$pkg['from']} to {$pkg['to']}\n";
         }
         if ($amount === 0) {
             $list = "No packages were upgraded.\n";
-        }
-
-        // Add composer.json constraint changes
-        if (count($this->requireConstraintChanges) > 0) {
-            $list .= "\nThe following version constraints in composer.json were changed:\n";
-            foreach ($this->requireConstraintChanges as $change) {
-                $list .= "* {$change['name']} constraint changed from {$change['from']} to {$change['to']}\n";
-            }
         }
 
         return <<<EOT
