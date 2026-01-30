@@ -55,6 +55,11 @@ class UpdateCommand extends Command
      */
     protected string $out;
 
+    protected array $upgradedPackages = [];
+    protected array $composerJsonRequireBefore = [];
+    protected array $composerJsonRequireAfter = [];
+    protected array $requireConstraintChanges = [];
+
     /**
      * Execute the console command.
      * @throws GitException
@@ -67,6 +72,9 @@ class UpdateCommand extends Command
             return; // @codeCoverageIgnore
         }
 
+        // Read composer.json require section before update
+        $this->composerJsonRequireBefore = $this->readComposerJsonRequire();
+
         if ($this->composerUpdateAllowExists()) {
             $output = app()->call(PackagesRequire::class, ['path' => $this->base_path]);
         } elseif (filled(env('COMPOSER_PACKAGES'))) {
@@ -74,6 +82,10 @@ class UpdateCommand extends Command
         } else {
             $output = app()->call(Update::class, ['path' => $this->base_path]);
         }
+
+        // Read composer.json require section after update
+        $this->composerJsonRequireAfter = $this->readComposerJsonRequire();
+        $this->requireConstraintChanges = $this->detectRequireConstraintChanges();
 
         echo $output;
 
@@ -198,14 +210,105 @@ class UpdateCommand extends Command
 
     protected function output(string $output): void
     {
-        $this->out = Str::of($output)
-                        ->explode(PHP_EOL)
-                        ->filter(fn ($item) => Str::contains($item, ' - '))
-                        ->reject(fn ($item) => Str::contains($item, 'Downloading '))
-                        ->takeUntil(fn ($item) => Str::contains($item, ':'))
-                        ->implode(PHP_EOL).PHP_EOL;
+        $lines = Str::of($output)
+            ->explode(PHP_EOL)
+            ->filter(fn ($item) => Str::contains($item, 'Upgrading'))
+            ->reject(fn ($item) => Str::contains($item, 'Downloading '));
+
+        $this->upgradedPackages = [];
+        foreach ($lines as $line) {
+            // Match: Upgrading vendor/package (old => new)
+            if (preg_match('/Upgrading ([^ ]+) \(([^ ]+) => ([^\)]+)\)/', $line, $matches)) {
+                $this->upgradedPackages[] = [
+                    'name' => $matches[1],
+                    'from' => $matches[2],
+                    'to' => $matches[3],
+                ];
+            }
+        }
+
+        $this->out = $lines->isNotEmpty()
+            ? $lines->implode(PHP_EOL).PHP_EOL
+            : 'No package updates detected.'.PHP_EOL;
 
         $this->line($this->out);
+    }
+
+    protected function readComposerJsonRequire(): array
+    {
+        $composerJsonPath = $this->base_path.'/composer.json';
+        if (!file_exists($composerJsonPath)) {
+            return [];
+        }
+        $json = json_decode(file_get_contents($composerJsonPath), true);
+        return $json['require'] ?? [];
+    }
+
+    protected function detectRequireConstraintChanges(): array
+    {
+        $changes = [];
+        foreach ($this->composerJsonRequireBefore as $package => $oldConstraint) {
+            if (isset($this->composerJsonRequireAfter[$package])) {
+                $newConstraint = $this->composerJsonRequireAfter[$package];
+                if ($oldConstraint !== $newConstraint) {
+                    $changes[] = [
+                        'name' => $package,
+                        'from' => $oldConstraint,
+                        'to' => $newConstraint,
+                    ];
+                }
+            }
+        }
+        // Also check for new packages added
+        foreach ($this->composerJsonRequireAfter as $package => $newConstraint) {
+            if (!isset($this->composerJsonRequireBefore[$package])) {
+                $changes[] = [
+                    'name' => $package,
+                    'from' => '(not required before)',
+                    'to' => $newConstraint,
+                ];
+            }
+        }
+        return $changes;
+    }
+
+    protected function formatPullRequestBody(): string
+    {
+        // Merge upgradedPackages and requireConstraintChanges for a unified upgrade list
+        $allUpgrades = $this->upgradedPackages;
+        $constraintNames = array_column($this->upgradedPackages, 'name');
+        foreach ($this->requireConstraintChanges as $change) {
+            // Avoid duplicates if already in upgradedPackages
+            if (!in_array($change['name'], $constraintNames, true)) {
+                $allUpgrades[] = $change;
+            }
+        }
+        $amount = count($allUpgrades);
+        $list = '';
+        foreach ($allUpgrades as $pkg) {
+            $list .= "* {$pkg['name']} from {$pkg['from']} to {$pkg['to']}\n";
+        }
+        if ($amount === 0) {
+            $list = "No packages were upgraded.\n";
+        }
+
+        return <<<EOT
+# [GitHub Bot]Composer maintenance auto updater
+
+**Ticket:** N/A
+
+## Description
+The following automated pull request updates {$amount} package(s).
+
+The following being upgraded:
+
+{$list}
+
+<!-- Add your description here. -->
+
+## Notes
+Although automated this branch requires manual testing as it is a feature update.
+EOT;
     }
 
     /**
@@ -242,13 +345,23 @@ class UpdateCommand extends Command
 
         $date = env('APP_SINGLE_BRANCH') ? '' : ' '.today()->toDateString();
 
+        // Use the same logic as formatPullRequestBody for upgrade count
+        $allUpgrades = $this->upgradedPackages;
+        $constraintNames = array_column($this->upgradedPackages, 'name');
+        foreach ($this->requireConstraintChanges as $change) {
+            if (!in_array($change['name'], $constraintNames, true)) {
+                $allUpgrades[] = $change;
+            }
+        }
+        $amount = count($allUpgrades);
+
         $pullData = [
             'base' => Str::afterLast(env('GITHUB_REF'), '/'),
             'head' => $this->new_branch,
             'title' => env('GIT_COMMIT_PREFIX', '').'Composer update with '
-                .(count(explode(PHP_EOL, $this->out)) - 1).' changes'
+                .$amount.' changes'
                 .$date,
-            'body' => $this->out,
+            'body' => $this->formatPullRequestBody(),
         ];
 
         $createPullRequest = true;
