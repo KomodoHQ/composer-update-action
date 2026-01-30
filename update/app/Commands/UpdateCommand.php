@@ -345,11 +345,21 @@ EOT;
 
         $date = env('APP_SINGLE_BRANCH') ? '' : ' '.today()->toDateString();
 
+        // Use the same logic as formatPullRequestBody for upgrade count
+        $allUpgrades = $this->upgradedPackages;
+        $constraintNames = array_column($this->upgradedPackages, 'name');
+        foreach ($this->requireConstraintChanges as $change) {
+            if (!in_array($change['name'], $constraintNames, true)) {
+                $allUpgrades[] = $change;
+            }
+        }
+        $amount = count($allUpgrades);
+
         $pullData = [
             'base' => Str::afterLast(env('GITHUB_REF'), '/'),
             'head' => $this->new_branch,
             'title' => env('GIT_COMMIT_PREFIX', '').'Composer update with '
-                .(count($this->upgradedPackages)).' changes'
+                .$amount.' changes'
                 .$date,
             'body' => $this->formatPullRequestBody(),
         ];
