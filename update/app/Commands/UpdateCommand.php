@@ -55,6 +55,8 @@ class UpdateCommand extends Command
      */
     protected string $out;
 
+    protected array $upgradedPackages = [];
+
     /**
      * Execute the console command.
      * @throws GitException
@@ -198,14 +200,60 @@ class UpdateCommand extends Command
 
     protected function output(string $output): void
     {
-        $this->out = Str::of($output)
-                        ->explode(PHP_EOL)
-                        ->filter(fn ($item) => Str::contains($item, ' - '))
-                        ->reject(fn ($item) => Str::contains($item, 'Downloading '))
-                        ->takeUntil(fn ($item) => Str::contains($item, ':'))
-                        ->implode(PHP_EOL).PHP_EOL;
+        $lines = Str::of($output)
+            ->explode(PHP_EOL)
+            ->filter(fn ($item) => Str::contains($item, 'Upgrading'))
+            ->reject(fn ($item) => Str::contains($item, 'Downloading '));
+
+        $this->upgradedPackages = [];
+        foreach ($lines as $line) {
+            // Match: Upgrading vendor/package (old => new)
+            if (preg_match('/Upgrading ([^ ]+) \(([^ ]+) => ([^\)]+)\)/', $line, $matches)) {
+                $this->upgradedPackages[] = [
+                    'name' => $matches[1],
+                    'from' => $matches[2],
+                    'to' => $matches[3],
+                ];
+            }
+        }
+
+        $this->out = $lines->isNotEmpty()
+            ? $lines->implode(PHP_EOL).PHP_EOL
+            : 'No package updates detected.'.PHP_EOL;
 
         $this->line($this->out);
+    }
+
+    protected function formatPullRequestBody(): string
+    {
+        $amount = count($this->upgradedPackages);
+        $list = '';
+
+        foreach ($this->upgradedPackages as $pkg) {
+            $list .= "* {$pkg['name']} from {$pkg['from']} to {$pkg['to']}\n";
+        }
+
+        if ($amount === 0) {
+            $list = 'No packages were upgraded.';
+        }
+
+        return <<<EOT
+# [GitHub Bot]Composer maintenance auto updater
+
+**Ticket:** N/A
+
+## Description
+The following automated pull request updates {$amount} package(s).
+
+The following being upgraded:
+
+{$list}
+
+<!-- Add your description here. -->
+
+## Notes
+Although automated this branch requires manual testing as it is a feature update.
+EOT;
     }
 
     /**
@@ -246,9 +294,9 @@ class UpdateCommand extends Command
             'base' => Str::afterLast(env('GITHUB_REF'), '/'),
             'head' => $this->new_branch,
             'title' => env('GIT_COMMIT_PREFIX', '').'Composer update with '
-                .(count(explode(PHP_EOL, $this->out)) - 1).' changes'
+                .(count($this->upgradedPackages)).' changes'
                 .$date,
-            'body' => $this->out,
+            'body' => $this->formatPullRequestBody(),
         ];
 
         $createPullRequest = true;
